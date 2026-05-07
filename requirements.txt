@@ -1,0 +1,7 @@
+streamlit
+google-generativeai
+aiosqlite
+python-dotenv
+PyMuPDF
+Pillow
+nest-asyncio

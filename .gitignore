@@ -216,3 +216,17 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Environment
+.env
+
+# Database
+*.db
+
+# Virtual environment
+.venv/
+venv/
+
+# IDE
+.vscode/
+.idea/
