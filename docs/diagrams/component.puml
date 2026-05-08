@@ -1,0 +1,41 @@
+@startuml component
+skinparam componentStyle rectangle
+
+title Tanulmányi Segítő - Komponens Diagram
+
+package "🖥️ Frontend - Streamlit" {
+    [Chat UI] as UI
+    [Sidebar - Beszélgetések] as SIDEBAR
+    [Hiperparaméter vezérlők] as PARAMS
+    [Fájl feltöltés] as UPLOAD
+}
+
+package "🧠 Services" {
+    [LLM Service\nGemini API hívások] as LLM
+    [Moderation Service\nPrompt ellenőrzés] as MOD
+    [Self-Correction Service\nVálasz validálás] as SELF
+    [File Processor\nPDF/Kép feldolgozás] as FILE
+}
+
+package "⚙️ Config" {
+    [Settings] as SETTINGS
+    [System Prompts] as PROMPTS
+}
+
+database "💾 SQLite" as DB
+
+UI --> MOD : prompt
+MOD --> LLM : biztonságos prompt
+MOD --> UI : elutasítás
+LLM --> SELF : generált válasz
+SELF --> UI : validált válasz
+SELF --> LLM : újragenerálás
+UPLOAD --> FILE
+FILE --> LLM : feldolgozott tartalom
+SIDEBAR --> DB : beszélgetések lekérése
+LLM --> DB : mentés
+LLM --> SETTINGS
+LLM --> PROMPTS
+PARAMS --> LLM : temperature, top_p, stb.
+
+@enduml

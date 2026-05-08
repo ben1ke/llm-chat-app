@@ -1,0 +1,34 @@
+@startuml sequence
+
+title Üzenetfeldolgozás folyamata
+
+actor "👤 Felhasználó" as User
+participant "🖥️ Streamlit UI" as UI
+participant "🛡️ Moderáció" as MOD
+participant "🤖 Gemini LLM" as LLM
+participant "🔄 Önjavítás" as SELF
+database "💾 SQLite" as DB
+
+User -> UI : Üzenet beírása (+opcionális fájl)
+UI -> MOD : Prompt ellenőrzése
+
+alt Támadó / Off-topic prompt
+    MOD --> UI : Elutasítás
+    UI --> User : "Ez nem tanulással kapcsolatos kérdés."
+else Biztonságos prompt
+    MOD --> UI : Engedélyezés
+    UI -> LLM : Üzenet + előzmények + system prompt
+
+    LLM -> SELF : Generált válasz
+
+    alt Nem releváns válasz
+        SELF -> LLM : Újragenerálás kérése
+        LLM -> SELF : Javított válasz
+    end
+
+    SELF --> UI : Validált válasz (streaming)
+    UI --> User : Válasz megjelenítése tokenként
+    UI -> DB : Üzenet + válasz + tokenek mentése
+end
+
+@enduml

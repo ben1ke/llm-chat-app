@@ -1,0 +1,28 @@
+@startuml er_diagram
+
+title Adatbázis ER Diagram
+
+entity "conversations" as conv {
+    * id : INTEGER <<PK>>
+    --
+    * title : TEXT
+    * created_at : TEXT
+    * updated_at : TEXT
+}
+
+entity "messages" as msg {
+    * id : INTEGER <<PK>>
+    --
+    * conversation_id : INTEGER <<FK>>
+    * role : TEXT
+    * content : TEXT
+    prompt_tokens : INTEGER
+    completion_tokens : INTEGER
+    total_tokens : INTEGER
+    attachment_type : TEXT
+    * created_at : TEXT
+}
+
+conv ||--o{ msg : "tartalmazza"
+
+@enduml
