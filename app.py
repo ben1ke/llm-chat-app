@@ -31,6 +31,10 @@ if "current_conversation_id" not in st.session_state:
     st.session_state.current_conversation_id = None
 if "messages" not in st.session_state:
     st.session_state.messages = []
+if "file_data" not in st.session_state:
+    st.session_state.file_data = None
+if "uploaded_file_name" not in st.session_state:
+    st.session_state.uploaded_file_name = None
 
 # --- Sidebar ---
 with st.sidebar:
@@ -41,6 +45,8 @@ with st.sidebar:
     if st.button("➕ Új beszélgetés", use_container_width=True):
         st.session_state.current_conversation_id = None
         st.session_state.messages = []
+        st.session_state.file_data = None
+        st.session_state.uploaded_file_name = None
         st.rerun()
 
     st.markdown("---")
@@ -68,6 +74,27 @@ with st.sidebar:
         min_value=256, max_value=8192, value=2048, step=256,
         help="Válasz maximális hossza"
     )
+
+    st.markdown("---")
+
+    # Fájl feltöltés
+    st.subheader("📎 Fájl feltöltés")
+    uploaded_file = st.file_uploader(
+        "PDF vagy kép feltöltése:",
+        type=["pdf", "png", "jpg", "jpeg", "webp"],
+        help="Feltölthetsz egy dokumentumot vagy képet, és kérdezhetsz róla!"
+    )
+
+    if uploaded_file is not None:
+        if st.session_state.uploaded_file_name != uploaded_file.name:
+            with st.spinner("Fájl feldolgozása..."):
+                st.session_state.file_data = process_uploaded_file(uploaded_file)
+                st.session_state.uploaded_file_name = uploaded_file.name
+        st.success(f"✅ `{uploaded_file.name}`")
+        st.caption("Írj egy kérdést a fájlról a chatben!")
+    else:
+        st.session_state.file_data = None
+        st.session_state.uploaded_file_name = None
 
     st.markdown("---")
 
@@ -104,24 +131,12 @@ with st.sidebar:
 # --- Fő chat terület ---
 st.header("📚 Tanulmányi Segítő Chat")
 
-# --- Fájl feltöltés ---
-uploaded_file = st.file_uploader(
-    "📎 Tölts fel fájlt (opcionális – PDF vagy kép):",
-    type=["pdf", "png", "jpg", "jpeg", "webp"],
-    help="Feltölthetsz egy dokumentumot vagy képet, és kérdezhetsz róla!"
-)
-
-if uploaded_file:
-    st.success(f"✅ Feltöltve: `{uploaded_file.name}` – Most írj egy kérdést a fájlról!")
-
-st.markdown("---")
-
-# --- Üzenetek megjelenítése ---
+# Üzenetek megjelenítése
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# --- Chat input ---
+# Chat input
 if prompt := st.chat_input("Írj egy üzenetet..."):
     # Felhasználó üzenetének megjelenítése
     st.session_state.messages.append({"role": "user", "content": prompt})
@@ -136,7 +151,6 @@ if prompt := st.chat_input("Írj egy üzenetet..."):
     moderation_result = moderate_input(prompt)
 
     if not moderation_result["allowed"]:
-        # Tiltott üzenet kezelése
         blocked_response = (
             f"⚠️ Ez az üzenet nem engedélyezett.\n\n"
             f"**Indok:** {moderation_result['reason']}\n\n"
@@ -146,7 +160,6 @@ if prompt := st.chat_input("Írj egy üzenetet..."):
             st.markdown(blocked_response)
         st.session_state.messages.append({"role": "assistant", "content": blocked_response})
 
-        # Mentés az adatbázisba
         run_async(add_message(st.session_state.current_conversation_id, "user", prompt))
         run_async(add_message(st.session_state.current_conversation_id, "assistant", blocked_response))
 
@@ -169,12 +182,12 @@ if prompt := st.chat_input("Írj egy üzenetet..."):
                     for m in st.session_state.messages[:-1]
                 ]
 
-                # 📎 Fájl alapján döntjük el melyik függvényt hívjuk
-                if uploaded_file is not None:
-                    file_data = process_uploaded_file(uploaded_file)
+                # 📎 Session state-ből vesszük a fájl adatot (nem olvassuk újra!)
+                if st.session_state.file_data is not None:
+                    file_data = st.session_state.file_data
 
                     if file_data["type"] == "unsupported":
-                        full_response = "❌ Nem támogatott fájlformátum! Kérlek PDF-et vagy képet tölts fel."
+                        full_response = "❌ Nem támogatott fájlformátum!"
                         message_placeholder.markdown(full_response)
                         prompt_tokens = 0
                         completion_tokens = 0
@@ -208,7 +221,7 @@ if prompt := st.chat_input("Írj egy üzenetet..."):
                     completion_tokens = chunk.usage_metadata.candidates_token_count if chunk.usage_metadata else 0
                     total_tokens = chunk.usage_metadata.total_token_count if chunk.usage_metadata else 0
 
-                # 🔄 SELF-CORRECTION (csak ha volt érdemi válasz)
+                # 🔄 SELF-CORRECTION
                 if full_response and not full_response.startswith("❌"):
                     validation = validate_response(prompt, full_response)
 
@@ -230,7 +243,6 @@ if prompt := st.chat_input("Írj egy üzenetet..."):
 
                         message_placeholder.markdown("✅ *Javított válasz:*\n\n" + full_response)
 
-                        # Token számok frissítése
                         prompt_tokens += chunk.usage_metadata.prompt_token_count if chunk.usage_metadata else 0
                         completion_tokens = chunk.usage_metadata.candidates_token_count if chunk.usage_metadata else 0
                         total_tokens += chunk.usage_metadata.total_token_count if chunk.usage_metadata else 0
@@ -244,7 +256,6 @@ if prompt := st.chat_input("Írj egy üzenetet..."):
 
         st.session_state.messages.append({"role": "assistant", "content": full_response})
 
-        # Mentés az adatbázisba
         run_async(add_message(
             st.session_state.current_conversation_id, "user", prompt,
             prompt_tokens=prompt_tokens, completion_tokens=0, total_tokens=prompt_tokens
