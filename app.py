@@ -5,7 +5,8 @@ from services.llm_service import send_message_stream, send_message_with_file_str
 from services.file_processor import process_uploaded_file
 from database.db import (
     init_db, create_conversation, get_all_conversations,
-    add_message, get_messages, delete_conversation, get_token_stats
+    add_message, get_messages, delete_conversation, get_token_stats,
+    get_conversation_token_stats
 )
 from services.moderation_service import moderate_input
 from services.self_correction_service import validate_response, regenerate_response
@@ -124,8 +125,15 @@ with st.sidebar:
     # Token statisztikák
     st.markdown("---")
     st.subheader("📊 Token statisztikák")
+    
+    if st.session_state.current_conversation_id:
+        conv_stats = run_async(get_conversation_token_stats(st.session_state.current_conversation_id))
+        st.metric("💬 Beszélgetés tokenjei", f"{conv_stats['total_tokens']:,}")
+        st.caption(f"Prompt: {conv_stats['prompt_tokens']:,} | Válasz: {conv_stats['completion_tokens']:,}")
+        st.markdown("")
+    
     stats = run_async(get_token_stats())
-    st.metric("Összes token", f"{stats['total_tokens']:,}")
+    st.metric("📊 Összes token (globális)", f"{stats['total_tokens']:,}")
     st.caption(f"Prompt: {stats['prompt_tokens']:,} | Válasz: {stats['completion_tokens']:,}")
 
 # --- Fő chat terület ---

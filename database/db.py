@@ -105,3 +105,20 @@ async def get_token_stats(conversation_id: int = None) -> dict:
             "completion_tokens": row[1] or 0,
             "total_tokens": row[2] or 0
         }
+        
+async def get_conversation_token_stats(conversation_id):
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute(
+            """SELECT 
+                COALESCE(SUM(prompt_tokens), 0) as prompt_tokens,
+                COALESCE(SUM(completion_tokens), 0) as completion_tokens,
+                COALESCE(SUM(total_tokens), 0) as total_tokens
+            FROM messages WHERE conversation_id = ?""",
+            (conversation_id,)
+        )
+        row = await cursor.fetchone()
+        return {
+            "prompt_tokens": row[0],
+            "completion_tokens": row[1],
+            "total_tokens": row[2]
+        }
