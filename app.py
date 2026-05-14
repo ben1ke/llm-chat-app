@@ -36,6 +36,8 @@ if "file_data" not in st.session_state:
     st.session_state.file_data = None
 if "uploaded_file_name" not in st.session_state:
     st.session_state.uploaded_file_name = None
+if "generating" not in st.session_state:
+    st.session_state.generating = False
 
 # --- Sidebar ---
 with st.sidebar:
@@ -145,7 +147,9 @@ for message in st.session_state.messages:
         st.markdown(message["content"])
 
 # Chat input
-if prompt := st.chat_input("Írj egy üzenetet..."):
+if prompt := st.chat_input("Írj egy üzenetet...", disabled=st.session_state.generating):
+    st.session_state.generating = True  # Letiltjuk az inputot
+
     # Felhasználó üzenetének megjelenítése
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
@@ -170,7 +174,10 @@ if prompt := st.chat_input("Írj egy üzenetet..."):
 
         run_async(add_message(st.session_state.current_conversation_id, "user", prompt))
         run_async(add_message(st.session_state.current_conversation_id, "assistant", blocked_response))
-
+        
+        st.session_state.generating = False
+        st.rerun()
+        
     else:
         # ✅ Engedélyezett – LLM válasz (fájllal vagy anélkül)
         with st.chat_message("assistant"):
@@ -272,3 +279,7 @@ if prompt := st.chat_input("Írj egy üzenetet..."):
             st.session_state.current_conversation_id, "assistant", full_response,
             prompt_tokens=0, completion_tokens=completion_tokens, total_tokens=completion_tokens
         ))
+        
+        # Generálás vége – input újra engedélyezve
+        st.session_state.generating = False
+        st.rerun()
