@@ -54,7 +54,6 @@ def validate_response(user_question: str, ai_response: str) -> dict:
             )
         )
 
-        import json
         result_text = response.text.strip()
 
         # JSON kinyerése ha markdown-ban jönne
