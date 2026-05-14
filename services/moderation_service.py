@@ -1,3 +1,6 @@
+import json
+import re
+
 from google import genai
 from google.genai import types
 from config.settings import GEMINI_API_KEY
@@ -34,6 +37,17 @@ FONTOS:
 - A tanuláshoz KÖZVETVE kapcsolódó kérdéseket is engedélyezd.
 """
 
+def _parse_json(text, fallback):
+    """JSON kinyerése LLM válaszból (markdown, single quote kezelés)."""
+    try:
+        match = re.search(r'\{.*\}', text, re.DOTALL)
+        if match:
+            fixed = match.group(0).replace("'", '"').replace("True", "true").replace("False", "false")
+            return json.loads(fixed)
+    except Exception:
+        pass
+    return fallback
+
 def moderate_input(user_input: str) -> dict:
     """
     Ellenőrzi a felhasználó üzenetét.
@@ -50,7 +64,6 @@ def moderate_input(user_input: str) -> dict:
             )
         )
 
-        import json
         result_text = response.text.strip()
 
         # JSON kinyerése ha markdown-ban jönne
@@ -60,7 +73,7 @@ def moderate_input(user_input: str) -> dict:
                 result_text = result_text[4:]
             result_text = result_text.strip()
 
-        result = json.loads(result_text)
+        result = _parse_json(result_text, {"allowed": True, "reason": "Moderáció parse hiba"})
         return {
             "allowed": result.get("allowed", True),
             "reason": result.get("reason", "")
